@@ -12,56 +12,92 @@ export type { ChatMessage };
 export default function JarvisApp({ initialMessages }: { initialMessages: ChatMessage[] }) {
   const cc = useCommandCenter(initialMessages);
   const state = cc.terminal.state;
+  const botsLive = state ? state.bots.filter((b) => b.running).length : 0;
+  const agentsOn = state ? state.agents.filter((a) => a.active).length : 0;
 
   return (
     <main className="jt-root jt-command flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden text-slate-100">
-      <header className="jt-topnav z-30 flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-800/80 bg-black/80 px-3 py-2 backdrop-blur">
-        <div className="font-mono text-xs tracking-[0.28em] text-cyan-300">J.A.R.V.I.S.</div>
-        <span className="jt-badge">COMMAND CENTER</span>
-        <span className="hidden font-mono text-[10px] text-slate-600 sm:inline">JARVIS TERMINAL · ONE SCREEN</span>
-        <div className={`ml-auto font-mono text-[10px] ${cc.engineStatus === "error" ? "text-rose-400" : "text-slate-500"}`}>
+      <header className="jt-topnav z-30 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4">
+        <div className="jt-mark">
+          <div className="jt-mark__glyph">J</div>
+          <div>
+            <div className="jt-mark__title">J.A.R.V.I.S.</div>
+            <div className="jt-mark__sub">Command Center</div>
+          </div>
+        </div>
+
+        <span className="jt-badge jt-badge--live">
+          <span className="jt-dot jt-dot-live" />
+          LIVE
+        </span>
+        <span className="jt-badge hidden sm:inline-flex">HUD · DESK</span>
+
+        <div className="jt-health ml-auto hidden md:flex">
+          <span className="jt-health__item">
+            <span className={`jt-dot ${cc.engineStatus === "ready" ? "jt-dot-cyan" : ""}`} />
+            {cc.statusLabel}
+          </span>
+          <span className="jt-footer__sep" />
+          <span className="jt-health__item">
+            BOTS {botsLive}/{state?.bots.length ?? 0}
+          </span>
+          <span className="jt-footer__sep" />
+          <span className="jt-health__item">
+            AGENTS {agentsOn}/{state?.agents.length ?? 0}
+          </span>
+        </div>
+
+        <div
+          className={`font-mono text-[10px] md:hidden ${
+            cc.engineStatus === "error" ? "text-rose-400" : "text-slate-500"
+          }`}
+        >
           {cc.statusLabel}
         </div>
+        <time className="jt-clock tabular-nums" dateTime={cc.terminal.clock}>
+          {cc.terminal.clock}
+        </time>
       </header>
 
-      <div className="jt-voicebar z-40 flex shrink-0 flex-wrap items-center gap-2 border-b border-slate-800/80 bg-[#07090c]/95 px-3 py-2 backdrop-blur">
+      <div className="jt-voicebar z-40 flex shrink-0 flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
         <button
           type="button"
           onClick={cc.toggleListening}
           disabled={!cc.voiceSupported || cc.engineStatus === "loading"}
-          className={`min-h-11 min-w-[9.5rem] rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg transition disabled:cursor-not-allowed disabled:opacity-40 ${
-            cc.listening ? "bg-rose-500 text-white hover:bg-rose-400" : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
-          }`}
+          className={`jt-voice-btn ${cc.listening ? "jt-voice-btn--stop" : "jt-voice-btn--mic"}`}
         >
           {cc.listening ? "⏹ Стоп" : "🎙️ Микрофон"}
         </button>
         <button
           type="button"
           onClick={() => cc.setTtsEnabled((v) => !v)}
-          className={`min-h-11 rounded-full border px-4 py-2.5 text-sm font-medium transition ${
-            cc.ttsEnabled ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-200" : "border-slate-700 bg-slate-900/60 text-slate-400"
-          }`}
+          className={`jt-pill-btn ${cc.ttsEnabled ? "jt-pill-btn--on" : ""}`}
         >
           {cc.ttsEnabled ? "🔊 TTS" : "🔇 TTS"}
         </button>
         <div className="flex min-w-0 flex-1 items-center gap-2 font-mono text-[11px] text-slate-500">
-          <span className={`jt-dot ${cc.listening ? "jt-dot-live" : ""}`} />
+          <span className={`jt-dot ${cc.listening ? "jt-dot-live" : "jt-dot-cyan"}`} />
           <span className="truncate">
             {cc.listening
-              ? "Слушаю…"
+              ? "Слушаю команду…"
               : cc.voiceSupported
                 ? "Голос всегда доступен · «запусти бота» / «останови ботов»"
                 : "Web Speech недоступен — используйте текстовый ввод"}
           </span>
         </div>
         {cc.anyExpanded && (
-          <button
-            type="button"
-            onClick={() => cc.setExpanded(null)}
-            className="min-h-11 rounded-full border border-slate-700 px-4 py-2 text-xs font-semibold uppercase tracking-wider text-slate-300 hover:border-cyan-500/50 hover:text-cyan-200"
-          >
-            ⟵ К сетке
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="jt-esc-hint hidden sm:inline">
+              <kbd>Esc</kbd> свернуть
+            </span>
+            <button
+              type="button"
+              onClick={() => cc.setExpanded(null)}
+              className="jt-pill-btn min-h-11 text-xs font-semibold uppercase tracking-wider"
+            >
+              ⟵ К сетке
+            </button>
+          </div>
         )}
       </div>
 
@@ -70,6 +106,8 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
           id="chat"
           title="Jarvis · Chat"
           subtitle="Орб · голос · диалог"
+          status={cc.listening ? "live" : cc.engineStatus === "ready" ? "idle" : "warn"}
+          statusLabel={cc.listening ? "LISTENING" : cc.engineStatus === "ready" ? "ONLINE" : "BOOT"}
           expanded={cc.expanded === "chat"}
           anyExpanded={cc.anyExpanded}
           onExpand={() => cc.setExpanded("chat")}
@@ -92,8 +130,10 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
 
         <HudPanel
           id="terminal"
-          title="Trading Terminal"
-          subtitle="WASM charts · KPI · positions"
+          title="Trading Desk"
+          subtitle="WASM · KPI · positions"
+          status="live"
+          statusLabel="MARKET"
           expanded={cc.expanded === "terminal"}
           anyExpanded={cc.anyExpanded}
           onExpand={() => cc.setExpanded("terminal")}
@@ -108,6 +148,8 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
           id="bots"
           title="Bots"
           subtitle="Симуляция · localStorage"
+          status={botsLive > 0 ? "live" : "idle"}
+          statusLabel={botsLive > 0 ? `${botsLive} RUNNING` : "IDLE"}
           expanded={cc.expanded === "bots"}
           anyExpanded={cc.anyExpanded}
           onExpand={() => cc.setExpanded("bots")}
@@ -115,7 +157,15 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
           className="jt-hud-slot jt-hud-slot--bots"
         >
           <div className="p-3">
-            {state ? <BotsPanel bots={state.bots} onToggle={cc.terminal.toggleBot} /> : <p className="text-sm text-slate-500">Загрузка…</p>}
+            {state ? (
+              <BotsPanel bots={state.bots} onToggle={cc.terminal.toggleBot} />
+            ) : (
+              <div className="jt-empty">
+                <div className="jt-empty__icon">···</div>
+                <p>Загрузка ботов…</p>
+                <div className="jt-skeleton mt-2 h-16 w-full max-w-xs" />
+              </div>
+            )}
           </div>
         </HudPanel>
 
@@ -123,6 +173,8 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
           id="agents"
           title="AI Agents"
           subtitle="JarvisEngine · market commentary"
+          status={agentsOn > 0 ? "live" : "idle"}
+          statusLabel={agentsOn > 0 ? `${agentsOn} ACTIVE` : "STANDBY"}
           expanded={cc.expanded === "agents"}
           anyExpanded={cc.anyExpanded}
           onExpand={() => cc.setExpanded("agents")}
@@ -138,24 +190,39 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
                 busy={cc.terminal.agentBusy}
               />
             ) : (
-              <p className="text-sm text-slate-500">Загрузка…</p>
+              <div className="jt-empty">
+                <div className="jt-empty__icon">AI</div>
+                <p>Загрузка агентов…</p>
+              </div>
             )}
           </div>
         </HudPanel>
       </div>
 
-      <footer className="jt-footer z-20 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5">
-        <span className="text-cyan-400/80">J.A.R.V.I.S.</span>
-        <span>BTC ${cc.terminal.btc.toFixed(0)}</span>
-        <span>ETH ${cc.terminal.eth.toFixed(0)}</span>
-        <span className="jt-dot jt-dot-live" />
-        <span>LIVE</span>
+      <footer className="jt-footer z-20 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 sm:px-4">
+        <span className="jt-cyan">J.A.R.V.I.S.</span>
+        <span className="jt-footer__sep" />
+        <span className="jt-num">BTC ${cc.terminal.btc.toFixed(0)}</span>
+        <span className="jt-num">ETH ${cc.terminal.eth.toFixed(0)}</span>
+        <span className="jt-footer__sep" />
+        <span className="jt-badge jt-badge--live">
+          <span className="jt-dot jt-dot-live" />
+          LIVE
+        </span>
         {state && (
           <span className="text-slate-600">
-            bots {state.bots.filter((b) => b.running).length}/{state.bots.length}
+            bots {botsLive}/{state.bots.length} · agents {agentsOn}/{state.agents.length}
           </span>
         )}
-        <span className="ml-auto">{cc.terminal.clock}</span>
+        {state && (
+          <>
+            <span className="jt-footer__sep hidden sm:block" />
+            <span className={`jt-num hidden sm:inline ${state.unrealized >= 0 ? "jt-green" : "jt-red"}`}>
+              uPnL {state.unrealized >= 0 ? "+" : ""}${state.unrealized.toFixed(2)}
+            </span>
+          </>
+        )}
+        <span className="jt-clock ml-auto">{cc.terminal.clock}</span>
       </footer>
     </main>
   );
