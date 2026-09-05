@@ -1,0 +1,168 @@
+:root {
+--jt-void: #02040a;
+--jt-void-2: #0a0f1a;
+--jt-panel: rgba(8, 14, 28, 0.72);
+--jt-panel-solid: #080e1c;
+--jt-glass: rgba(12, 20, 36, 0.55);
+--jt-border: rgba(56, 189, 248, 0.22);
+--jt-border-soft: rgba(148, 163, 184, 0.12);
+--jt-cyan: #38bdf8;
+--jt-cyan-dim: rgba(56, 189, 248, 0.15);
+--jt-profit: #00e676;
+--jt-loss: #ff3b5c;
+--jt-amber: #fbbf24;
+--jt-text: #e2e8f0;
+--jt-muted: #64748b;
+--jt-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+--jt-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+--jt-grid: 8px;
+--jt-radius: 10px;
+}
+@keyframes jarvis-pulse {
+0%, 100% { transform: scale(1); filter: brightness(1); }
+50% { transform: scale(1.035); filter: brightness(1.12); }
+}
+@keyframes jarvis-pulse-fast {
+0%, 100% { transform: scale(1); filter: brightness(1.05); }
+50% { transform: scale(1.08); filter: brightness(1.3); }
+}
+@keyframes jarvis-spin {
+0% { transform: rotate(0deg) scale(1); }
+50% { transform: rotate(180deg) scale(1.04); }
+100% { transform: rotate(360deg) scale(1); }
+}
+@keyframes jt-pulse-dot {
+0%, 100% { opacity: 1; transform: scale(1); }
+50% { opacity: 0.5; transform: scale(0.82); }
+}
+@keyframes jt-scan {
+0% { transform: translateY(-100%); }
+100% { transform: translateY(100%); }
+}
+@keyframes jt-ticker {
+0% { transform: translateX(0); }
+100% { transform: translateX(-50%); }
+}
+@keyframes jt-shimmer {
+0% { background-position: -200% 0; }
+100% { background-position: 200% 0; }
+}
+.animate-jarvis-pulse { animation: jarvis-pulse 3.2s ease-in-out infinite; }
+.animate-jarvis-pulse-fast { animation: jarvis-pulse-fast 1s ease-in-out infinite; }
+.animate-jarvis-spin { animation: jarvis-spin 2.4s linear infinite; }
+.jt-root {
+background: var(--jt-void);
+color: var(--jt-text);
+font-family: var(--jt-sans);
+font-feature-settings: "tnum" 1;
+}
+.jt-command {
+background:
+radial-gradient(ellipse 80% 50% at 50% -10%, rgba(56, 189, 248, 0.08), transparent 55%),
+radial-gradient(ellipse 60% 40% at 85% 100%, rgba(0, 230, 118, 0.04), transparent 50%),
+linear-gradient(180deg, var(--jt-void-2) 0%, var(--jt-void) 55%, #010208 100%);
+}
+.jt-command::before {
+content: "";
+pointer-events: none;
+position: fixed;
+inset: 0;
+z-index: 1;
+opacity: 0.035;
+background: repeating-linear-gradient(
+0deg,
+transparent,
+transparent 2px,
+rgba(0, 0, 0, 0.35) 2px,
+rgba(0, 0, 0, 0.35) 3px
+);
+}
+.jt-topnav {
+position: relative;
+z-index: 30;
+border-bottom: 1px solid var(--jt-border-soft);
+background: rgba(2, 4, 10, 0.78);
+backdrop-filter: blur(16px);
+-webkit-backdrop-filter: blur(16px);
+}
+.jt-mark {
+display: flex;
+align-items: center;
+gap: 0.55rem;
+}
+.jt-mark__glyph {
+display: grid;
+place-items: center;
+width: 1.75rem;
+height: 1.75rem;
+border-radius: 0.4rem;
+border: 1px solid rgba(56, 189, 248, 0.45);
+background: linear-gradient(145deg, rgba(56, 189, 248, 0.2), rgba(14, 165, 233, 0.05));
+box-shadow: 0 0 18px rgba(56, 189, 248, 0.25);
+font-family: var(--jt-mono);
+font-size: 10px;
+font-weight: 700;
+letter-spacing: 0.06em;
+color: var(--jt-cyan);
+}
+.jt-mark__title {
+font-family: var(--jt-mono);
+font-size: 11px;
+letter-spacing: 0.32em;
+color: #7dd3fc;
+text-transform: uppercase;
+}
+.jt-mark__sub {
+font-family: var(--jt-mono);
+font-size: 9px;
+letter-spacing: 0.18em;
+color: var(--jt-muted);
+text-transform: uppercase;
+}
+.jt-badge {
+display: inline-flex;
+align-items: center;
+gap: 0.35rem;
+border: 1px solid rgba(56, 189, 248, 0.28);
+border-radius: 999px;
+padding: 0.15rem 0.55rem;
+font-family: var(--jt-mono);
+font-size: 9px;
+letter-spacing: 0.14em;
+color: #7dd3fc;
+background: rgba(56, 189, 248, 0.07);
+text-transform: uppercase;
+}
+.jt-badge--live {
+border-color: rgba(0, 230, 118, 0.35);
+color: var(--jt-profit);
+background: rgba(0, 230, 118, 0.08);
+}
+.jt-badge--warn {
+border-color: rgba(251, 191, 36, 0.35);
+color: var(--jt-amber);
+background: rgba(251, 191, 36, 0.08);
+}
+.jt-badge--err {
+border-color: rgba(255, 59, 92, 0.4);
+color: var(--jt-loss);
+background: rgba(255, 59, 92, 0.08);
+}
+.jt-dot {
+display: inline-block;
+width: 6px;
+height: 6px;
+border-radius: 999px;
+background: #475569;
+flex-shrink: 0;
+}
+.jt-dot-live {
+background: var(--jt-profit);
+box-shadow: 0 0 8px var(--jt-profit);
+animation: jt-pulse-dot 1.4s ease-in-out infinite;
+}
+.jt-dot-cyan {
+background: var(--jt-cyan);
+box-shadow: 0 0 8px var(--jt-cyan);
+animation: jt-pulse-dot 1.6s ease-in-out infinite;
+}
