@@ -13,8 +13,8 @@ type Props = {
 export default function AnimatedChart({
   seed = 21,
   mode = "price",
-  title = "REALIZED PNL / PRICE WAVE",
-  accent = "#22d3ee",
+  title = "REALIZED / MARKET",
+  accent = "#38bdf8",
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -59,7 +59,7 @@ export default function AnimatedChart({
 
         ctx.clearRect(0, 0, w, h);
 
-        ctx.strokeStyle = "rgba(148,163,184,0.08)";
+        ctx.strokeStyle = "rgba(56,189,248,0.06)";
         ctx.lineWidth = 1;
         for (let i = 0; i < 6; i++) {
           const y = (i / 5) * h;
@@ -118,9 +118,12 @@ export default function AnimatedChart({
 
   return (
     <div className="jt-panel flex h-full min-h-[160px] flex-col">
-      <div className="jt-panel-title flex items-center justify-between">
+      <div className="jt-panel-title">
         <span>{title}</span>
-        <span className="jt-badge">WASM · rAF</span>
+        <span className="jt-badge">
+          <span className="jt-dot jt-dot-cyan" />
+          WASM · rAF
+        </span>
       </div>
       <div ref={wrapRef} className="relative min-h-0 flex-1">
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />

@@ -6,6 +6,8 @@ type Props = {
   id: string;
   title: string;
   subtitle?: string;
+  status?: "live" | "idle" | "warn" | "err";
+  statusLabel?: string;
   expanded: boolean;
   onExpand: () => void;
   onCollapse: () => void;
@@ -20,6 +22,8 @@ export default function HudPanel({
   id,
   title,
   subtitle,
+  status,
+  statusLabel,
   expanded,
   onExpand,
   onCollapse,
@@ -33,6 +37,15 @@ export default function HudPanel({
     return null;
   }
 
+  const badgeClass =
+    status === "live"
+      ? "jt-badge jt-badge--live"
+      : status === "warn"
+        ? "jt-badge jt-badge--warn"
+        : status === "err"
+          ? "jt-badge jt-badge--err"
+          : "jt-badge";
+
   return (
     <section
       data-panel={id}
@@ -40,17 +53,28 @@ export default function HudPanel({
         expanded ? "jt-hud-panel--expanded" : ""
       } ${className}`}
     >
-      <header className="jt-hud-panel__head flex shrink-0 items-center gap-2 px-3 py-2">
+      <span className="jt-hud-corners" aria-hidden />
+      <header className="jt-hud-panel__head flex shrink-0 items-center gap-2 py-2">
         <div className="min-w-0 flex-1">
-          <div className="font-mono text-[10px] tracking-[0.22em] text-cyan-300/90 uppercase">{title}</div>
-          {subtitle ? <div className="truncate text-[10px] text-slate-500">{subtitle}</div> : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="font-mono text-[10px] tracking-[0.24em] text-sky-300/95 uppercase">{title}</div>
+            {statusLabel ? (
+              <span className={badgeClass}>
+                {status === "live" || status === "idle" ? (
+                  <span className={`jt-dot ${status === "live" ? "jt-dot-live" : ""}`} />
+                ) : null}
+                {statusLabel}
+              </span>
+            ) : null}
+          </div>
+          {subtitle ? <div className="mt-0.5 truncate text-[10px] text-slate-500">{subtitle}</div> : null}
         </div>
         {expanded ? (
           <button
             type="button"
             onClick={onCollapse}
             className="jt-hud-iconbtn"
-            title="Свернуть"
+            title="Свернуть (Esc)"
             aria-label="Свернуть панель"
           >
             ✕

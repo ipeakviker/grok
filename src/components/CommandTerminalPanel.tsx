@@ -15,8 +15,10 @@ type Props = {
 export default function CommandTerminalPanel({ state, pulse, expanded }: Props) {
   if (!state) {
     return (
-      <div className="flex h-full items-center justify-center p-6 text-sm text-slate-500">
-        Загрузка терминала…
+      <div className="jt-empty h-full min-h-[200px]">
+        <div className="jt-empty__icon">WASM</div>
+        <p>Загрузка терминала…</p>
+        <div className="jt-skeleton mt-3 h-24 w-full max-w-md" />
       </div>
     );
   }
@@ -32,10 +34,10 @@ export default function CommandTerminalPanel({ state, pulse, expanded }: Props) 
       />
       <div className={`grid min-h-[140px] gap-2 ${expanded ? "flex-1 lg:grid-cols-5" : "lg:grid-cols-5"}`}>
         <div className="min-h-[120px] lg:col-span-3">
-          <AnimatedChart seed={21} mode="price" title="PRICE WAVE · WASM" accent="#22d3ee" />
+          <AnimatedChart seed={21} mode="price" title="REALIZED / MARKET · PRICE WAVE" accent="#38bdf8" />
         </div>
         <div className="min-h-[120px] lg:col-span-2">
-          <AnimatedChart seed={34} mode="pnl" title="PNL STREAM" accent="#22c55e" />
+          <AnimatedChart seed={34} mode="pnl" title="PNL STREAM" accent="#00e676" />
         </div>
       </div>
       <div className={`grid min-h-[160px] gap-2 ${expanded ? "min-h-0 flex-1 lg:grid-cols-5" : "lg:grid-cols-5"}`}>
