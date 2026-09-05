@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@keyframes jarvis-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.035);
+    filter: brightness(1.12);
+  }
+}
+
+@keyframes jarvis-pulse-fast {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1.05);
+  }
+  50% {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+  }
+}
+
+@keyframes jarvis-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}
+
+.animate-jarvis-pulse {
+  animation: jarvis-pulse 3.2s ease-in-out infinite;
+}
+
+.animate-jarvis-pulse-fast {
+  animation: jarvis-pulse-fast 1s ease-in-out infinite;
+}
+
+.animate-jarvis-spin {
+  animation: jarvis-spin 2.4s linear infinite;
+}
