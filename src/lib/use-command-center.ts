@@ -1,16 +1,20 @@
 "use client";
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createJarvisEngine, getEngineVersion, type JarvisEngineHandle } from "@/lib/jarvis-engine";
+import { matchDashboardIntent } from "@/lib/dashboard-context";
 import { loadChat, saveChat } from "@/lib/terminal-store";
 import { useTerminalSim } from "@/lib/use-terminal-sim";
-import { matchBotVoiceCommand, speak } from "@/lib/voice-utils";
+import {
+  createWhisperSession,
+  getOpenAiKey,
+  matchBotVoiceCommand,
+  speak,
+  stopSpeaking,
+} from "@/lib/voice-utils";
 import type { ChatMessage } from "@/components/CommandChatPanel";
-
 type EngineStatus = "loading" | "ready" | "error";
 type OrbState = "idle" | "listening" | "thinking" | "speaking";
-export type PanelId = "chat" | "terminal" | "bots" | "agents";
-
+export type PanelId = "chat" | "terminal" | "bots" | "agents" | "rustaman";
 export function useCommandCenter(initialMessages: ChatMessage[]) {
   const [expanded, setExpanded] = useState<PanelId | null>(null);
   const [chat, setChat] = useState<ChatMessage[]>(initialMessages);
@@ -24,25 +28,30 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
   const [voiceSupported, setVoiceSupported] = useState(false);
   const [ttsEnabled, setTtsEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
-
+  const [interimTranscript, setInterimTranscript] = useState("");
+  const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
+  const [voiceSettingsOpen, setVoiceSettingsOpen] = useState(false);
+  const [holdMode, setHoldMode] = useState(false);
   const engineRef = useRef<JarvisEngineHandle | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const listeningRef = useRef(false);
+  const whisperSessionRef = useRef<ReturnType<typeof createWhisperSession> | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const handleRef = useRef<(text: string) => Promise<void>>(async () => {});
-
+  const restartTimerRef = useRef<number | null>(null);
   const terminal = useTerminalSim();
-
+  const terminalRef = useRef(terminal);
+  terminalRef.current = terminal;
   useEffect(() => {
     const saved = loadChat() as ChatMessage[];
     if (saved.length) setChat(saved);
     setHydrated(true);
+    setHasOpenAiKey(!!getOpenAiKey());
   }, []);
-
   useEffect(() => {
     if (!hydrated) return;
     saveChat(chat);
   }, [chat, hydrated]);
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -61,45 +70,59 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
       cancelled = true;
     };
   }, []);
-
+  const replyWithTts = useCallback(
+    async (content: string, intent?: string, moodVal?: string) => {
+      if (moodVal) setMood(moodVal);
+      setChat((prev) => [...prev, { role: "jarvis", content, intent, mood: moodVal }]);
+      if (ttsEnabled) {
+        setOrb("speaking");
+        try {
+          await speak(content);
+        } catch (err) {
+          console.warn("speak failed", err);
+        }
+        setOrb(listeningRef.current ? "listening" : "idle");
+      } else {
+        setOrb(listeningRef.current ? "listening" : "idle");
+      }
+    },
+    [ttsEnabled],
+  );
   const handleUserMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || busy) return;
       setBusy(true);
       setOrb("thinking");
+      setInterimTranscript("");
       setChat((prev) => [...prev, { role: "user", content: trimmed }]);
-
       try {
-        const botReply = matchBotVoiceCommand(trimmed, terminal.setBotsRunning);
+        const term = terminalRef.current;
+        const botReply = matchBotVoiceCommand(trimmed, term.setBotsRunning);
         if (botReply) {
-          setMood("proud");
-          setChat((prev) => [...prev, { role: "jarvis", content: botReply, intent: "bots", mood: "proud" }]);
-          if (ttsEnabled) {
-            setOrb("speaking");
-            speak(botReply);
-            window.setTimeout(() => setOrb("idle"), 1800);
-          } else setOrb("idle");
+          await replyWithTts(botReply, "bots", "proud");
           return;
         }
-
+        const dash = matchDashboardIntent(trimmed, term.state, {
+          engineVersion,
+          btc: term.btc,
+          eth: term.eth,
+        });
+        if (dash) {
+          await replyWithTts(dash.reply, dash.intent, dash.mood);
+          return;
+        }
         let engine = engineRef.current;
         if (!engine) {
           engine = await createJarvisEngine();
           engineRef.current = engine;
           setEngineStatus("ready");
         }
-        const result = engine.process(trimmed);
-        setMood(result.mood);
-        setChat((prev) => [
-          ...prev,
-          { role: "jarvis", content: result.reply, intent: result.intent, mood: result.mood },
-        ]);
-        if (ttsEnabled) {
-          setOrb("speaking");
-          speak(result.reply);
-          window.setTimeout(() => setOrb("idle"), Math.min(6000, Math.max(1200, result.reply.length * 55)));
-        } else setOrb("idle");
+        const ctx = term.state
+          ? `[ctx equity $${term.state.totalValue.toFixed(0)} uPnL ${term.state.unrealized.toFixed(1)} bots ${term.state.bots.filter((b) => b.running).length}] `
+          : "";
+        const result = engine.process(ctx + trimmed);
+        await replyWithTts(result.reply, result.intent, result.mood);
       } catch (err) {
         console.error("Engine processing failed", err);
         setChat((prev) => [
@@ -111,69 +134,173 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
         setBusy(false);
       }
     },
-    [busy, ttsEnabled, terminal.setBotsRunning],
+    [busy, engineVersion, replyWithTts],
   );
-
   handleRef.current = handleUserMessage;
-
   useEffect(() => {
     const w = window as unknown as Window;
     const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition;
     if (!Ctor) {
-      setVoiceSupported(false);
+      setVoiceSupported(typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia);
       return;
     }
     setVoiceSupported(true);
     const recognition = new Ctor();
     recognition.lang = "ru-RU";
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => {
-      const result = event.results[event.results.length - 1];
-      const transcript = result?.[0]?.transcript?.trim();
-      if (transcript) void handleRef.current(transcript);
+      let interim = "";
+      let finalText = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        const piece = res?.[0]?.transcript || "";
+        const isFinal = (res as unknown as { isFinal?: boolean }).isFinal;
+        if (isFinal) finalText += piece;
+        else interim += piece;
+      }
+      if (interim) setInterimTranscript(interim);
+      if (finalText.trim()) {
+        setInterimTranscript("");
+        void handleRef.current(finalText.trim());
+      }
     };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
+    recognition.onerror = (ev) => {
+      if (ev.error === "aborted" || ev.error === "no-speech") return;
+      console.warn("SpeechRecognition error", ev.error);
+      if (!listeningRef.current) setListening(false);
+    };
+    recognition.onend = () => {
+      if (listeningRef.current && !getOpenAiKey()) {
+        if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = window.setTimeout(() => {
+          if (!listeningRef.current) return;
+          try {
+            recognition.start();
+            setOrb("listening");
+          } catch {}
+        }, 280);
+      } else if (!listeningRef.current) {
+        setListening(false);
+        setOrb((o) => (o === "listening" ? "idle" : o));
+      }
+    };
     recognitionRef.current = recognition;
     return () => {
+      listeningRef.current = false;
+      if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
+      try {
+        recognition.abort();
+      } catch {}
       recognition.onresult = null;
       recognition.onerror = null;
       recognition.onend = null;
     };
   }, []);
-
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [chat]);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(null);
+      if (e.key === "Escape") {
+        setExpanded(null);
+        setVoiceSettingsOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  const toggleListening = useCallback(() => {
+  const stopListening = useCallback(async () => {
+    listeningRef.current = false;
+    setListening(false);
+    setInterimTranscript("");
+    const whisper = whisperSessionRef.current;
+    whisperSessionRef.current = null;
+    if (whisper) {
+      setOrb("thinking");
+      try {
+        const text = await whisper.stop();
+        if (text) await handleRef.current(text);
+        else setOrb("idle");
+      } catch (err) {
+        if (!(err instanceof Error && err.message === "aborted")) {
+          console.error("Whisper stop failed", err);
+          setChat((prev) => [
+            ...prev,
+            {
+              role: "jarvis",
+              content: `Whisper не смог расшифровать: ${err instanceof Error ? err.message : String(err)}. Проверьте ключ в Settings · Voice.`,
+            },
+          ]);
+        }
+        setOrb("idle");
+      }
+      return;
+    }
     const recognition = recognitionRef.current;
-    if (!recognition) return;
-    if (listening) {
-      recognition.stop();
+    try {
+      recognition?.stop();
+    } catch {}
+    setOrb("idle");
+  }, []);
+  const startListening = useCallback(async () => {
+    stopSpeaking();
+    const key = getOpenAiKey();
+    setHasOpenAiKey(!!key);
+    listeningRef.current = true;
+    setListening(true);
+    setOrb("listening");
+    setInterimTranscript(key ? "Whisper: запись…" : "");
+    if (key) {
+      try {
+        whisperSessionRef.current = createWhisperSession(key);
+      } catch (err) {
+        console.error(err);
+        listeningRef.current = false;
+        setListening(false);
+        setOrb("idle");
+        setChat((prev) => [
+          ...prev,
+          { role: "jarvis", content: "Не удалось получить доступ к микрофону для Whisper." },
+        ]);
+      }
+      return;
+    }
+    const recognition = recognitionRef.current;
+    if (!recognition) {
+      listeningRef.current = false;
       setListening(false);
       setOrb("idle");
-    } else {
+      return;
+    }
+    try {
+      recognition.start();
+    } catch (err) {
+      console.error("Could not start recognition", err);
       try {
-        recognition.start();
-        setListening(true);
-        setOrb("listening");
-      } catch (err) {
-        console.error("Could not start recognition", err);
+        recognition.abort();
+        window.setTimeout(() => {
+          try {
+            recognition.start();
+          } catch (e2) {
+            console.error(e2);
+            listeningRef.current = false;
+            setListening(false);
+            setOrb("idle");
+          }
+        }, 200);
+      } catch {
+        listeningRef.current = false;
+        setListening(false);
+        setOrb("idle");
       }
     }
-  }, [listening]);
-
+  }, []);
+  const toggleListening = useCallback(() => {
+    if (listening) void stopListening();
+    else void startListening();
+  }, [listening, startListening, stopListening]);
   const onSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
@@ -183,13 +310,11 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
     },
     [handleUserMessage, input],
   );
-
   const clearHistory = useCallback(() => {
     setChat([]);
     engineRef.current?.reset();
     saveChat([]);
   }, []);
-
   const orbClasses = useMemo(() => {
     const size = expanded === "chat" ? "h-36 w-36 sm:h-44 sm:w-44" : "h-20 w-20 sm:h-24 sm:w-24";
     const base = `relative ${size} rounded-full transition-all duration-500 ease-out shadow-[0_0_80px_rgba(56,189,248,0.35)]`;
@@ -204,14 +329,23 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
         return `${base} bg-gradient-to-br from-cyan-400 via-sky-600 to-indigo-700 animate-jarvis-pulse`;
     }
   }, [orb, expanded]);
-
   const statusLabel =
     engineStatus === "loading"
       ? "Загрузка Rust-ядра…"
       : engineStatus === "error"
         ? "Ошибка WASM"
         : `${engineVersion || "jarvis"} · онлайн`;
-
+  const voiceHint = listening
+    ? interimTranscript
+      ? interimTranscript
+      : hasOpenAiKey
+        ? "Whisper · говорите, затем «Стоп»"
+        : "Слушаю… interim transcript"
+    : hasOpenAiKey
+      ? "Whisper STT + OpenAI TTS · ключ в браузере"
+      : voiceSupported
+        ? "Голос: Web Speech · «что на экране» / «запусти бота» · Settings для Whisper"
+        : "Микрофон/Speech недоступны — текстовый ввод";
   return {
     expanded,
     setExpanded,
@@ -219,6 +353,7 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
     input,
     setInput,
     engineStatus,
+    engineVersion,
     orb,
     mood,
     listening,
@@ -228,10 +363,20 @@ export function useCommandCenter(initialMessages: ChatMessage[]) {
     terminal,
     scrollRef,
     toggleListening,
+    startListening,
+    stopListening,
     onSubmit,
     clearHistory,
     orbClasses,
     statusLabel,
     anyExpanded: expanded !== null,
+    interimTranscript,
+    voiceHint,
+    hasOpenAiKey,
+    setHasOpenAiKey,
+    voiceSettingsOpen,
+    setVoiceSettingsOpen,
+    holdMode,
+    setHoldMode,
   };
 }
