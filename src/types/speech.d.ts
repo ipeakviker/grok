@@ -1,6 +1,4 @@
-// Minimal ambient typings for the Web Speech API (SpeechRecognition), which
-// is not part of the standard TypeScript DOM lib yet but is available in
-// Chromium-based browsers as `SpeechRecognition` / `webkitSpeechRecognition`.
+// Minimal ambient typings for the Web Speech API (SpeechRecognition).
 
 interface SpeechRecognitionEventResultItem {
   transcript: string;
@@ -11,13 +9,19 @@ interface SpeechRecognitionAlternative {
   [index: number]: SpeechRecognitionEventResultItem;
   length: number;
   item(index: number): SpeechRecognitionEventResultItem;
-  isFinal?: boolean;
+}
+
+interface SpeechRecognitionResult {
+  [index: number]: SpeechRecognitionEventResultItem;
+  length: number;
+  item(index: number): SpeechRecognitionEventResultItem;
+  isFinal: boolean;
 }
 
 interface SpeechRecognitionResultList {
-  [index: number]: SpeechRecognitionAlternative;
+  [index: number]: SpeechRecognitionResult;
   length: number;
-  item(index: number): SpeechRecognitionAlternative;
+  item(index: number): SpeechRecognitionResult;
 }
 
 interface SpeechRecognitionEvent extends Event {
