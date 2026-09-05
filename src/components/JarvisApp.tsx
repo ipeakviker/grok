@@ -146,8 +146,8 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
 
       <footer className="jt-footer z-20 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5">
         <span className="text-cyan-400/80">J.A.R.V.I.S.</span>
-        <span>BTC {cc.terminal.btc.toFixed(0)}</span>
-        <span>ETH {cc.terminal.eth.toFixed(0)}</span>
+        <span>BTC ${cc.terminal.btc.toFixed(0)}</span>
+        <span>ETH ${cc.terminal.eth.toFixed(0)}</span>
         <span className="jt-dot jt-dot-live" />
         <span>LIVE</span>
         {state && (
