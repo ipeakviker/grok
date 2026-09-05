@@ -3,6 +3,8 @@
 import HudPanel from "@/components/HudPanel";
 import CommandChatPanel, { type ChatMessage } from "@/components/CommandChatPanel";
 import CommandTerminalPanel from "@/components/CommandTerminalPanel";
+import RustamanPanel from "@/components/RustamanPanel";
+import VoiceSettings from "@/components/VoiceSettings";
 import AgentsPanel from "@/components/terminal/AgentsPanel";
 import BotsPanel from "@/components/terminal/BotsPanel";
 import { useCommandCenter } from "@/lib/use-command-center";
@@ -65,6 +67,19 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
           onClick={cc.toggleListening}
           disabled={!cc.voiceSupported || cc.engineStatus === "loading"}
           className={`jt-voice-btn ${cc.listening ? "jt-voice-btn--stop" : "jt-voice-btn--mic"}`}
+          onPointerDown={(e) => {
+            if (!cc.holdMode || e.button !== 0) return;
+            e.preventDefault();
+            if (!cc.listening) void cc.startListening();
+          }}
+          onPointerUp={() => {
+            if (!cc.holdMode) return;
+            if (cc.listening) void cc.stopListening();
+          }}
+          onPointerLeave={() => {
+            if (!cc.holdMode) return;
+            if (cc.listening) void cc.stopListening();
+          }}
         >
           {cc.listening ? "⏹ Стоп" : "🎙️ Микрофон"}
         </button>
@@ -75,15 +90,24 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
         >
           {cc.ttsEnabled ? "🔊 TTS" : "🔇 TTS"}
         </button>
+        <button
+          type="button"
+          onClick={() => cc.setHoldMode((v) => !v)}
+          className={`jt-pill-btn ${cc.holdMode ? "jt-pill-btn--on" : ""}`}
+          title="Удерживать для записи"
+        >
+          {cc.holdMode ? "✋ Hold" : "👆 PTT"}
+        </button>
+        <button
+          type="button"
+          onClick={() => cc.setVoiceSettingsOpen(true)}
+          className={`jt-pill-btn ${cc.hasOpenAiKey ? "jt-pill-btn--on" : ""}`}
+        >
+          ⚙️ Voice
+        </button>
         <div className="flex min-w-0 flex-1 items-center gap-2 font-mono text-[11px] text-slate-500">
           <span className={`jt-dot ${cc.listening ? "jt-dot-live" : "jt-dot-cyan"}`} />
-          <span className="truncate">
-            {cc.listening
-              ? "Слушаю команду…"
-              : cc.voiceSupported
-                ? "Голос всегда доступен · «запусти бота» / «останови ботов»"
-                : "Web Speech недоступен — используйте текстовый ввод"}
-          </span>
+          <span className={`truncate ${cc.interimTranscript ? "text-sky-200/90" : ""}`}>{cc.voiceHint}</span>
         </div>
         {cc.anyExpanded && (
           <div className="flex items-center gap-2">
@@ -197,6 +221,29 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
             )}
           </div>
         </HudPanel>
+
+        <HudPanel
+          id="rustaman"
+          title="RUSTaman"
+          subtitle="ассистент оператора · app awareness"
+          status="live"
+          statusLabel="OPS"
+          expanded={cc.expanded === "rustaman"}
+          anyExpanded={cc.anyExpanded}
+          onExpand={() => cc.setExpanded("rustaman")}
+          onCollapse={() => cc.setExpanded(null)}
+          className="jt-hud-slot jt-hud-slot--rustaman"
+        >
+          <RustamanPanel
+            state={state}
+            chat={cc.chat}
+            engineVersion={cc.engineVersion}
+            engineStatus={cc.engineStatus}
+            btc={cc.terminal.btc}
+            eth={cc.terminal.eth}
+            ttsEnabled={cc.ttsEnabled}
+          />
+        </HudPanel>
       </div>
 
       <footer className="jt-footer z-20 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 sm:px-4">
@@ -224,6 +271,12 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
         )}
         <span className="jt-clock ml-auto">{cc.terminal.clock}</span>
       </footer>
+
+      <VoiceSettings
+        open={cc.voiceSettingsOpen}
+        onClose={() => cc.setVoiceSettingsOpen(false)}
+        onKeyChange={(has) => cc.setHasOpenAiKey(has)}
+      />
     </main>
   );
 }
