@@ -3,8 +3,9 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Jarvis · Rust + WebAssembly Assistant",
-  description: "Голосовой ассистент Джарвис: логика на Rust (WebAssembly), интерфейс на Next.js.",
+  title: "Jarvis Terminal · Rust + WebAssembly",
+  description:
+    "J.A.R.V.I.S. — голосовой ассистент и торговый терминал: логика на Rust (WebAssembly), интерфейс на Next.js.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

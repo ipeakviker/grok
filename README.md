@@ -1,38 +1,23 @@
-# grok — J.A.R.V.I.S.
+# J.A.R.V.I.S. · grok
 
-Next.js frontend + Rust/WebAssembly brain.
+Next.js static site + Rust/WebAssembly assistant, deployed to GitHub Pages.
 
-## Live (GitHub Pages)
+**Live:** https://ipeakviker.github.io/grok/
 
-https://ipeakviker.github.io/grok/
+## Features
 
-Static export only: chat UI + in-browser WASM. No Postgres / API on Pages.
+- **Chat** — voice/text assistant (Rust intent engine in WASM)
+- **JARVIS TERMINAL** — dark pro-trader style demo portfolio (WASM sparklines / waveforms)
+- **Bots** — start/stop simulated grid / mean-reversion / momentum bots (localStorage)
+- **Agents** — Scout / Risk / Sentiment call JarvisEngine.process for market commentary
 
-## Local
+## Develop
 
 ```bash
+npm run wasm:build
 npm install
-# optional: rebuild wasm
-npm run wasm:build
-NEXT_PUBLIC_BASE_PATH= npm run dev
+npm run dev
 ```
 
-For a Pages-like build:
-
-```bash
-npm run wasm:build
-NEXT_PUBLIC_BASE_PATH=/grok npm run build
-# static files in out/
-```
-
-## Deploy
-
-Push to `main` runs `.github/workflows/deploy-pages.yml` (builds WASM, static export, deploys Pages).
-
-Pages source: **GitHub Actions** (Settings → Pages).
-
-## Stack
-
-- Next.js 16 (static `output: 'export'` for Pages)
-- Rust `jarvis-core` → WASM
-- Optional server pieces (`src/db`, Drizzle) are for a full Node host, not Pages.
+GitHub Pages build sets NEXT_PUBLIC_BASE_PATH=/grok and output export.
+No server API routes — chat and terminal state persist in localStorage.
