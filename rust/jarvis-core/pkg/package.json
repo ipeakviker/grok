@@ -1,0 +1,15 @@
+{
+  "name": "jarvis-core",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "jarvis_core_bg.wasm",
+    "jarvis_core.js",
+    "jarvis_core.d.ts"
+  ],
+  "main": "jarvis_core.js",
+  "types": "jarvis_core.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
