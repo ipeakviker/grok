@@ -25,7 +25,8 @@ interface WasmModule {
   default: (input?: unknown) => Promise<unknown>;
 }
 
-const WASM_JS_PATH = "/wasm/jarvis-core/jarvis_core.js";
+const BASE = process.env.NEXT_PUBLIC_BASE_PATH || "";
+const WASM_JS_PATH = `${BASE}/wasm/jarvis-core/jarvis_core.js`;
 
 let modulePromise: Promise<WasmModule> | null = null;
 

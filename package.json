@@ -1,12 +1,13 @@
 {
-  "name": "nextjs-postgresql-template",
+  "name": "grok-jarvis",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "wasm:build": "wasm-pack build rust/jarvis-core --target web --release --out-dir ../../public/wasm/jarvis-core"
   },
   "dependencies": {
     "dotenv": "17.3.1",
