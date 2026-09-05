@@ -18,6 +18,7 @@
 .animate-jarvis-spin { animation: jarvis-spin 2.4s linear infinite; }
 
 .jt-root { background: #050607; color: #e2e8f0; font-feature-settings: "tnum" 1; }
+.jt-command { background: radial-gradient(circle at top, #0b1220 0%, #050607 55%, #020409 100%); }
 .jt-topnav { border-color: #1a1f2a; }
 .jt-subnav { border-bottom: 1px solid #1a1f2a; background: #08090b; }
 .jt-panel { border: 1px solid #1c2230; background: linear-gradient(180deg, #0c0e12 0%, #090a0d 100%); border-radius: 6px; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02); }
@@ -37,3 +38,89 @@
 .jt-dot-live { background: #22c55e; box-shadow: 0 0 8px #22c55e; animation: jt-pulse-dot 1.4s ease-in-out infinite; }
 @keyframes jt-pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.55; transform: scale(0.85); } }
 .jt-scroll { overflow: auto; }
+
+/* Command Center HUD */
+.jt-voicebar { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); }
+.jt-hud-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #1e293b;
+  background: rgba(15, 23, 42, 0.8);
+  color: #94a3b8;
+  font-size: 1rem;
+  line-height: 1;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.jt-hud-iconbtn:hover {
+  color: #67e8f9;
+  border-color: rgba(34, 211, 238, 0.45);
+  background: rgba(34, 211, 238, 0.08);
+}
+.jt-hud-panel {
+  border: 1px solid #1c2230;
+  background: linear-gradient(180deg, rgba(12, 14, 18, 0.95) 0%, rgba(9, 10, 13, 0.98) 100%);
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 40px rgba(0, 0, 0, 0.25);
+}
+.jt-hud-panel__head {
+  border-bottom: 1px solid #1a1f2a;
+  background: rgba(8, 9, 11, 0.85);
+}
+.jt-hud-panel--expanded {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25), 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.jt-hud-grid {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: 1fr;
+  grid-template-rows: auto;
+  grid-template-areas:
+    "chat"
+    "terminal"
+    "bots"
+    "agents";
+  overflow: auto;
+}
+.jt-hud-slot--chat { grid-area: chat; min-height: 280px; }
+.jt-hud-slot--terminal { grid-area: terminal; min-height: 320px; }
+.jt-hud-slot--bots { grid-area: bots; min-height: 220px; }
+.jt-hud-slot--agents { grid-area: agents; min-height: 220px; }
+
+.jt-hud-grid--expanded {
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .jt-hud-grid:not(.jt-hud-grid--expanded) {
+    overflow: hidden;
+    grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.6fr) minmax(260px, 0.95fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "chat terminal bots"
+      "chat terminal agents";
+  }
+  .jt-hud-slot--chat,
+  .jt-hud-slot--terminal,
+  .jt-hud-slot--bots,
+  .jt-hud-slot--agents {
+    min-height: 0;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .jt-hud-grid:not(.jt-hud-grid--expanded) {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "chat terminal"
+      "bots agents";
+  }
+}
