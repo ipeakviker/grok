@@ -13,6 +13,23 @@ export interface JarvisReply {
   turn: number;
 }
 
+export interface MarketTick {
+  price: number;
+  prev: number;
+  changePct: number;
+  volume: number;
+  pnl: number;
+  unrealized: number;
+  t: number;
+}
+
+export interface BotSignal {
+  side: "buy" | "sell" | string;
+  confidence: number;
+  strategy: string;
+  tick: MarketTick;
+}
+
 interface WasmEngineInstance {
   process(input: string, timeStr: string, dateStr: string): string;
   reset(): void;
@@ -22,6 +39,11 @@ interface WasmModule {
   JarvisEngine: new () => WasmEngineInstance;
   engine_version: () => string;
   evaluate_math: (expr: string) => number | undefined;
+  tick_market: (seed: number, t: number) => string;
+  generate_sparkline: (seed: number, n: number, t: number) => string;
+  generate_waveform: (seed: number, n: number, t: number, mode: string) => string;
+  pulse_meter: (seed: number, t: number) => number;
+  bot_signal: (seed: number, strategy: string, t: number) => string;
   default: (input?: unknown) => Promise<unknown>;
 }
 
@@ -42,9 +64,48 @@ async function loadModule(): Promise<WasmModule> {
   return modulePromise;
 }
 
+function parseJsonArray(raw: string): number[] {
+  try {
+    const v = JSON.parse(raw) as unknown;
+    return Array.isArray(v) ? (v as number[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getEngineVersion(): Promise<string> {
   const mod = await loadModule();
   return mod.engine_version();
+}
+
+export async function getWasmModule(): Promise<WasmModule> {
+  return loadModule();
+}
+
+export function tickMarket(mod: WasmModule, seed: number, t: number): MarketTick {
+  return JSON.parse(mod.tick_market(seed >>> 0, t)) as MarketTick;
+}
+
+export function generateSparkline(mod: WasmModule, seed: number, n: number, t: number): number[] {
+  return parseJsonArray(mod.generate_sparkline(seed >>> 0, n >>> 0, t));
+}
+
+export function generateWaveform(
+  mod: WasmModule,
+  seed: number,
+  n: number,
+  t: number,
+  mode: "price" | "volume" | "pnl" | string,
+): number[] {
+  return parseJsonArray(mod.generate_waveform(seed >>> 0, n >>> 0, t, mode));
+}
+
+export function pulseMeter(mod: WasmModule, seed: number, t: number): number {
+  return mod.pulse_meter(seed >>> 0, t);
+}
+
+export function botSignal(mod: WasmModule, seed: number, strategy: string, t: number): BotSignal {
+  return JSON.parse(mod.bot_signal(seed >>> 0, strategy, t)) as BotSignal;
 }
 
 export interface JarvisEngineHandle {
