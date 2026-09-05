@@ -6,10 +6,11 @@ Next.js static site + Rust/WebAssembly assistant, deployed to GitHub Pages.
 
 ## Features
 
-- **Chat** — voice/text assistant (Rust intent engine in WASM)
-- **JARVIS TERMINAL** — dark pro-trader style demo portfolio (WASM sparklines / waveforms)
-- **Bots** — start/stop simulated grid / mean-reversion / momentum bots (localStorage)
-- **Agents** — Scout / Risk / Sentiment call JarvisEngine.process for market commentary
+- **Command Center (HUD)** — one full-viewport screen: chat + trading terminal + bots + agents together (no tab switching)
+- **Expandable panels** — fullscreen any panel, then collapse back to the grid
+- **Always-on voice bar** — mic + TTS stay reachable even in fullscreen (Web Speech API)
+- **JARVIS TERMINAL** — dark pro-trader demo (WASM sparklines / waveforms, localStorage sim)
+- **Voice bot control** — «запусти бота» / «останови ботов»
 
 ## Develop
 
