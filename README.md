@@ -27,9 +27,9 @@ NEXT_PUBLIC_BASE_PATH=/grok npm run build
 
 ## Deploy
 
-Push to `main` runs `.github/workflows/deploy-pages.yml` (builds WASM, `next export`, deploys Pages).
+Push to `main` runs `.github/workflows/deploy-pages.yml` (builds WASM, static export, deploys Pages).
 
-One-time: **Settings → Pages → Source: GitHub Actions**.
+Pages source: **GitHub Actions** (Settings → Pages).
 
 ## Stack
 
