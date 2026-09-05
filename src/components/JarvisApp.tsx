@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createJarvisEngine, getEngineVersion, type JarvisEngineHandle } from "@/lib/jarvis-engine";
+import { loadChat, saveChat } from "@/lib/terminal-store";
+import TerminalShell from "@/components/terminal/TerminalShell";
 
 type Role = "user" | "jarvis";
 
@@ -16,6 +18,7 @@ export interface ChatMessage {
 
 type EngineStatus = "loading" | "ready" | "error";
 type OrbState = "idle" | "listening" | "thinking" | "speaking";
+type AppTab = "chat" | "terminal" | "bots" | "agents";
 
 const MOOD_LABEL: Record<string, string> = {
   neutral: "Спокоен",
@@ -39,7 +42,9 @@ function speak(text: string) {
 }
 
 export default function JarvisApp({ initialMessages }: { initialMessages: ChatMessage[] }) {
+  const [tab, setTab] = useState<AppTab>("chat");
   const [chat, setChat] = useState<ChatMessage[]>(initialMessages);
+  const [hydrated, setHydrated] = useState(false);
   const [input, setInput] = useState("");
   const [engineStatus, setEngineStatus] = useState<EngineStatus>("loading");
   const [engineVersion, setEngineVersion] = useState<string>("");
@@ -53,6 +58,17 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
   const engineRef = useRef<JarvisEngineHandle | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const saved = loadChat() as ChatMessage[];
+    if (saved.length) setChat(saved);
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveChat(chat);
+  }, [chat, hydrated]);
 
   useEffect(() => {
     let cancelled = false;
@@ -110,21 +126,6 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [chat]);
 
-  const persist = useCallback(async (msg: ChatMessage) => {
-    try {
-      const res = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(msg),
-      });
-      const data = (await res.json()) as { ok: boolean; message?: { id: number; createdAt: string } };
-      return data.message;
-    } catch (err) {
-      console.error("Failed to persist message", err);
-      return undefined;
-    }
-  }, []);
-
   const handleUserMessage = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -134,7 +135,6 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
 
       const userMsg: ChatMessage = { role: "user", content: trimmed };
       setChat((prev) => [...prev, userMsg]);
-      void persist(userMsg);
 
       try {
         let engine = engineRef.current;
@@ -152,7 +152,6 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
         };
         setMood(result.mood);
         setChat((prev) => [...prev, jarvisMsg]);
-        void persist(jarvisMsg);
 
         if (ttsEnabled) {
           setOrb("speaking");
@@ -174,7 +173,7 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
         setBusy(false);
       }
     },
-    [busy, persist, ttsEnabled],
+    [busy, ttsEnabled],
   );
 
   const toggleListening = useCallback(() => {
@@ -205,19 +204,15 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
     [handleUserMessage, input],
   );
 
-  const clearHistory = useCallback(async () => {
+  const clearHistory = useCallback(() => {
     setChat([]);
     engineRef.current?.reset();
-    try {
-      await fetch("/api/messages", { method: "DELETE" });
-    } catch (err) {
-      console.error("Failed to clear history", err);
-    }
+    saveChat([]);
   }, []);
 
   const orbClasses = useMemo(() => {
     const base =
-      "relative h-40 w-40 sm:h-52 sm:w-52 rounded-full transition-all duration-500 ease-out shadow-[0_0_80px_rgba(56,189,248,0.35)]";
+      "relative h-36 w-36 sm:h-44 sm:w-44 rounded-full transition-all duration-500 ease-out shadow-[0_0_80px_rgba(56,189,248,0.35)]";
     switch (orb) {
       case "listening":
         return `${base} bg-gradient-to-br from-rose-400 via-rose-500 to-orange-500 animate-jarvis-pulse-fast`;
@@ -237,124 +232,160 @@ export default function JarvisApp({ initialMessages }: { initialMessages: ChatMe
         ? "Ошибка загрузки WASM-ядра"
         : `${engineVersion} · онлайн`;
 
+  const tabs: { id: AppTab; label: string }[] = [
+    { id: "chat", label: "Чат" },
+    { id: "terminal", label: "Терминал" },
+    { id: "bots", label: "Боты" },
+    { id: "agents", label: "Агенты" },
+  ];
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#0b1220,_#020409_65%)] text-slate-100">
-      <div className="mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-8 sm:px-8">
-        <header className="flex flex-col items-center gap-1 text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-cyan-400/80">Rust · WebAssembly · Next.js</p>
-          <h1 className="bg-gradient-to-r from-cyan-300 via-sky-200 to-indigo-300 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl">
-            J.A.R.V.I.S.
-          </h1>
-          <p
-            className={`mt-1 text-xs font-medium ${
-              engineStatus === "error" ? "text-rose-400" : "text-slate-400"
-            }`}
-          >
-            {statusLabel}
-          </p>
-        </header>
-
-        <div className="mt-6 flex flex-col items-center gap-4">
-          <div className={orbClasses}>
-            <div className="absolute inset-4 rounded-full bg-slate-950/60 backdrop-blur-sm" />
-            <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] uppercase tracking-widest text-cyan-100/80">
-              {orb === "idle" && "ожидание"}
-              {orb === "listening" && "слушаю"}
-              {orb === "thinking" && "думаю"}
-              {orb === "speaking" && "говорю"}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-3">
+    <main className="flex min-h-screen flex-col bg-[radial-gradient(circle_at_top,_#0b1220,_#020409_65%)] text-slate-100">
+      <header className="jt-topnav sticky top-0 z-20 flex flex-wrap items-center gap-2 border-b border-slate-800/80 bg-black/70 px-3 py-2 backdrop-blur">
+        <div className="mr-2 font-mono text-xs tracking-[0.25em] text-cyan-300">J.A.R.V.I.S.</div>
+        <nav className="flex flex-wrap gap-1">
+          {tabs.map((t) => (
             <button
+              key={t.id}
               type="button"
-              onClick={toggleListening}
-              disabled={!voiceSupported || engineStatus !== "ready"}
-              className={`rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                listening
-                  ? "bg-rose-500 text-white hover:bg-rose-400"
-                  : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+              onClick={() => setTab(t.id)}
+              className={`rounded px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${
+                tab === t.id
+                  ? "bg-cyan-500/20 text-cyan-200 shadow-[0_0_12px_rgba(34,211,238,0.25)]"
+                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
               }`}
             >
-              {listening ? "⏹ Остановить" : "🎙️ Говорить"}
+              {t.label}
             </button>
-            <button
-              type="button"
-              onClick={() => setTtsEnabled((v) => !v)}
-              className={`rounded-full border px-4 py-2.5 text-sm font-medium transition ${
-                ttsEnabled
-                  ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-200"
-                  : "border-slate-700 bg-slate-900/60 text-slate-400"
-              }`}
-            >
-              {ttsEnabled ? "🔊 Озвучка включена" : "🔇 Озвучка выключена"}
-            </button>
-            <button
-              type="button"
-              onClick={clearHistory}
-              className="rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300"
-            >
-              🗑️ Очистить историю
-            </button>
-          </div>
-          {!voiceSupported && (
-            <p className="max-w-md text-center text-xs text-slate-500">
-              Голосовой ввод (Web Speech API) не поддерживается этим браузером — используйте текстовое поле ниже. Попробуйте Chrome/Edge.
-            </p>
-          )}
-        </div>
-
-        <section
-          ref={scrollRef}
-          className="mt-8 flex-1 space-y-3 overflow-y-auto rounded-3xl border border-slate-800/80 bg-slate-950/50 p-4 shadow-inner sm:p-6"
-          style={{ maxHeight: "48vh" }}
+          ))}
+        </nav>
+        <div
+          className={`ml-auto font-mono text-[10px] ${
+            engineStatus === "error" ? "text-rose-400" : "text-slate-500"
+          }`}
         >
-          {chat.length === 0 && (
-            <p className="py-10 text-center text-sm text-slate-500">
-              Скажите «привет», спросите «который час» или «посчитай 12*7» — Джарвис ответит.
-            </p>
-          )}
-          {chat.map((m, idx) => (
-            <div key={m.id ?? idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div
-                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-md sm:max-w-[70%] ${
-                  m.role === "user"
-                    ? "bg-cyan-600 text-white"
-                    : "border border-slate-700/80 bg-slate-900/80 text-slate-100"
-                }`}
-              >
-                {m.role === "jarvis" && (
-                  <p className="mb-1 text-[0.65rem] uppercase tracking-widest text-cyan-400/70">
-                    Jarvis{m.mood ? ` · ${MOOD_LABEL[m.mood] ?? m.mood}` : ""}
-                  </p>
-                )}
-                {m.content}
+          {statusLabel}
+        </div>
+      </header>
+
+      {tab === "chat" && (
+        <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-6 sm:px-8">
+          <header className="flex flex-col items-center gap-1 text-center">
+            <p className="text-xs uppercase tracking-[0.35em] text-cyan-400/80">Rust · WebAssembly · Next.js</p>
+            <h1 className="bg-gradient-to-r from-cyan-300 via-sky-200 to-indigo-300 bg-clip-text text-4xl font-bold tracking-tight text-transparent sm:text-5xl">
+              J.A.R.V.I.S.
+            </h1>
+            <p className="text-xs text-slate-500">Чат · голос · калькулятор · заметки · market-сигналы</p>
+          </header>
+
+          <div className="mt-6 flex flex-col items-center gap-4">
+            <div className={orbClasses}>
+              <div className="absolute inset-4 rounded-full bg-slate-950/60 backdrop-blur-sm" />
+              <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] uppercase tracking-widest text-cyan-100/80">
+                {orb === "idle" && "ожидание"}
+                {orb === "listening" && "слушаю"}
+                {orb === "thinking" && "думаю"}
+                {orb === "speaking" && "говорю"}
               </div>
             </div>
-          ))}
-        </section>
 
-        <form onSubmit={onSubmit} className="mt-4 flex items-center gap-2">
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Спросите что-нибудь у Джарвиса…"
-            className="flex-1 rounded-full border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-500"
-          />
-          <button
-            type="submit"
-            disabled={engineStatus !== "ready" || !input.trim()}
-            className="rounded-full bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={toggleListening}
+                disabled={!voiceSupported || engineStatus !== "ready"}
+                className={`rounded-full px-5 py-2.5 text-sm font-semibold shadow-lg transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  listening
+                    ? "bg-rose-500 text-white hover:bg-rose-400"
+                    : "bg-cyan-500 text-slate-950 hover:bg-cyan-400"
+                }`}
+              >
+                {listening ? "⏹ Остановить" : "🎙️ Говорить"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTtsEnabled((v) => !v)}
+                className={`rounded-full border px-4 py-2.5 text-sm font-medium transition ${
+                  ttsEnabled
+                    ? "border-cyan-500/60 bg-cyan-500/10 text-cyan-200"
+                    : "border-slate-700 bg-slate-900/60 text-slate-400"
+                }`}
+              >
+                {ttsEnabled ? "🔊 Озвучка включена" : "🔇 Озвучка выключена"}
+              </button>
+              <button
+                type="button"
+                onClick={clearHistory}
+                className="rounded-full border border-slate-700 bg-slate-900/60 px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300"
+              >
+                🗑️ Очистить историю
+              </button>
+            </div>
+            {!voiceSupported && (
+              <p className="max-w-md text-center text-xs text-slate-500">
+                Голосовой ввод (Web Speech API) не поддерживается этим браузером — используйте текстовое поле ниже.
+              </p>
+            )}
+          </div>
+
+          <section
+            ref={scrollRef}
+            className="mt-8 flex-1 space-y-3 overflow-y-auto rounded-3xl border border-slate-800/80 bg-slate-950/50 p-4 shadow-inner sm:p-6"
+            style={{ maxHeight: "42vh" }}
           >
-            Отправить
-          </button>
-        </form>
+            {chat.length === 0 && (
+              <p className="py-10 text-center text-sm text-slate-500">
+                Скажите «привет», спросите «который час», «посчитай 12*7» или перейдите во вкладку «Терминал».
+              </p>
+            )}
+            {chat.map((m, idx) => (
+              <div key={m.id ?? idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-md sm:max-w-[70%] ${
+                    m.role === "user"
+                      ? "bg-cyan-600 text-white"
+                      : "border border-slate-700/80 bg-slate-900/80 text-slate-100"
+                  }`}
+                >
+                  {m.role === "jarvis" && (
+                    <p className="mb-1 text-[0.65rem] uppercase tracking-widest text-cyan-400/70">
+                      Jarvis{m.mood ? ` · ${MOOD_LABEL[m.mood] ?? m.mood}` : ""}
+                    </p>
+                  )}
+                  {m.content}
+                </div>
+              </div>
+            ))}
+          </section>
 
-        <footer className="mt-6 pb-2 text-center text-[0.7rem] text-slate-600">
-          Логика распознавания намерений, калькулятор и память заметок выполняются в Rust, скомпилированном в WebAssembly. {" "}
-          Голос и интерфейс — Next.js + Web Speech API. Текущее настроение: {MOOD_LABEL[mood] ?? mood}.
-        </footer>
-      </div>
+          <form onSubmit={onSubmit} className="mt-4 flex items-center gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Спросите что-нибудь у Джарвиса…"
+              className="flex-1 rounded-full border border-slate-700 bg-slate-900/70 px-5 py-3 text-sm text-slate-100 placeholder:text-slate-500 outline-none focus:border-cyan-500"
+            />
+            <button
+              type="submit"
+              disabled={engineStatus !== "ready" || !input.trim()}
+              className="rounded-full bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Отправить
+            </button>
+          </form>
+
+          <footer className="mt-6 pb-2 text-center text-[0.7rem] text-slate-600">
+            Логика на Rust/WASM. История чата и терминал — в localStorage (GitHub Pages, без API). Настроение:{" "}
+            {MOOD_LABEL[mood] ?? mood}.
+          </footer>
+        </div>
+      )}
+
+      {(tab === "terminal" || tab === "bots" || tab === "agents") && (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <TerminalShell section={tab === "terminal" ? "overview" : tab} />
+        </div>
+      )}
     </main>
   );
 }
