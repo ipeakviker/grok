@@ -25,7 +25,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: npm
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -36,7 +35,6 @@ jobs:
       - name: Build WASM
         run: |
           wasm-pack build rust/jarvis-core --target web --release --out-dir ../../public/wasm/jarvis-core
-          # wasm-pack writes a package.json we don't need on Pages
           rm -f public/wasm/jarvis-core/.gitignore public/wasm/jarvis-core/package.json
 
       - name: Install JS deps
